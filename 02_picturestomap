@@ -1,0 +1,34 @@
+library(tidyverse)
+library(fs)
+library(lubridate)
+library(exifr)
+library(jpeg)
+library(sf)
+library(leaflet)
+library(leafpop)
+library(leafpop)
+
+pictures_database <- readRDS("pictures_database.RDS")
+
+selsp <- pictures_database %>% 
+  filter(Score == max(.$Score)) 
+
+connect_sp <- paste(sep = "<br/>",
+      paste0("<img src='https://www.r-project.org/logo/Rlogo.png", "' />"), ## link to your image 
+      paste0("<b>Name: </b>", selsp$ScientificName),
+      paste0("<b>Place: </b>", selsp$GPSDateTime),
+      paste0("<a href='https://en.wikipedia.org/wiki/Frigor%C3%ADfico_Anglo_del_Uruguay", "'>Link</a>") # link to species info
+      ) 
+
+p2w <- leaflet() %>%
+  addTiles(group = "OpenStreetMap") %>%
+  addProviderTiles("Esri.WorldImagery", group = "OrtophotoA") %>%
+  addProviderTiles("GeoportailFrance.orthos", group = "OrtophotoB") %>%
+  addMarkers(lng = selsp$GPSLongitude, lat = selsp$GPSLatitude , group="Pictures", 
+             popup = connect_sp) %>%
+  addLayersControl(
+    baseGroups = c("OpenStreetMap", "OrtophotoA", "OrtophotoB"),
+    overlayGroups = c("Pictures")
+  )
+
+p2w  
