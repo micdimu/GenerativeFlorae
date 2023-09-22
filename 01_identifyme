@@ -1,0 +1,65 @@
+library(rvest)
+library(tidyverse)
+library(exifr)
+library(exiftoolr)
+
+API_URL <- "https://my-api.plantnet.org/v2/identify"
+
+project <- "weurope" # try specific floras: "weurope", "canada"…
+
+key <- "2b105Q86I6sV2Fr8Q0Wef7f7ze" # Your API key here
+
+lang <- "it"
+includeRelatedImages <- FALSE # try TRUE
+
+URL <- paste0(API_URL,
+              "/", project, "?",
+              "lang=", lang,
+              "&include-related-images=", includeRelatedImages,
+              "&api-key=", key)
+
+image_1 <- "img/2023-04-10-14h10m47-001.jpg"
+
+data <- list(
+  "images" = httr::upload_file(image_1),
+  "organs" = "flower"
+)
+
+response <- httr::POST(URL, body=data, encode="multipart")
+
+status <- response$status_code
+message(status)
+
+result <- httr::content(response, as = 'parsed')
+message(result)
+
+identifyme <- map(result$results, function(x){
+  x %>%
+    do.call(bind_cols,.)
+}) %>% 
+  do.call(bind_rows, .)
+
+############
+
+pic <- readImage(image_1)
+plot(pic)
+
+img_01 <- exifr::read_exif(image_1)
+
+exif_call(path = image_1, args = paste0("-XMP:Category=", identifyme$scientificNameWithoutAuthor...2[1]))
+exif_call(path = image_1, args = paste0("-Exif:ExifTag=", identifyme$scientificNameWithoutAuthor...2[1]))
+
+metadata <- exif_read(path = image_1)
+
+Plant_identity <- identifyme %>% 
+  select(Score = 1, ScientificName = 2, Author = 3, Genus = 4, Family = 7)
+
+pictures_database <- metadata %>% 
+  dplyr::select(FileName, GPSDateTime, GPSLongitude, GPSLatitude, GPSAltitude) %>% 
+  cbind.data.frame(Plant_identity) %>% 
+  select(FileName, Score, ScientificName, GPSLongitude, GPSLatitude, everything())
+
+# export data base 
+
+saveRDS(pictures_database, "pictures_database.RDS")
+
